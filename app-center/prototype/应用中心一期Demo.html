@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HiTouch 应用中心一期 MVP 演示</title>
+  <style>
+    :root {
+      --brand: #993366;
+      --brand-dark: #7a2952;
+      --brand-light: rgba(153, 51, 102, .08);
+      --text: rgba(0, 0, 0, .87);
+      --muted: rgba(0, 0, 0, .60);
+      --disabled: rgba(0, 0, 0, .38);
+      --paper: #fff;
+      --bg: #f6f6f6;
+      --line: #e2e2e2;
+      --success: #3d9b55;
+      --error: #c62828;
+      --radius: 14px;
+      --shadow: 0 2px 8px rgba(0, 0, 0, .06);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body { color: var(--text); background: var(--bg); font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+    button, input, textarea { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid rgba(153,51,102,.22); outline-offset: 2px; }
+    [data-view] { display: none; min-height: 100vh; }
+    [data-view].active { display: block; }
+    .appbar { height: 64px; border-bottom: 1px solid var(--line); background: var(--paper); }
+    .appbar-inner { width: min(1160px, calc(100% - 40px)); height: 100%; margin: auto; display: flex; align-items: center; gap: 12px; }
+    .brand-logo { width: 38px; height: 38px; border: 0; border-radius: 10px; color: #fff; background: var(--brand); display: grid; place-items: center; font-weight: 800; cursor: pointer; }
+    .brand-name { flex: 1; font-size: 1.08rem; font-weight: 800; }
+    .avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--brand); color: #fff; display: grid; place-items: center; font-weight: 800; position: relative; }
+    .avatar::after { content: ""; position: absolute; right: 0; bottom: 0; width: 9px; height: 9px; border-radius: 50%; background: #4caf50; border: 2px solid #fff; }
+    .page { width: min(1160px, calc(100% - 40px)); margin: auto; padding: 34px 0 64px; }
+    .page.narrow { width: min(760px, calc(100% - 40px)); }
+    .muted { color: var(--muted); }
+    .hint { color: var(--disabled); font-size: .78rem; }
+    .back-link { border: 0; color: var(--brand); background: transparent; cursor: pointer; font-weight: 700; }
+    .page-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+    .page-header h1 { flex: 1; font-size: 1.7rem; }
+    .btn { border: 0; border-radius: 9px; padding: 10px 20px; cursor: pointer; font-weight: 750; display: inline-flex; justify-content: center; align-items: center; gap: 6px; }
+    .btn-sm { padding: 7px 14px; font-size: .82rem; }
+    .btn-primary { color: #fff; background: var(--brand); }
+    .btn-primary:hover { background: var(--brand-dark); }
+    .btn-outline { color: var(--brand); background: #fff; border: 1.5px solid var(--brand); }
+    .btn-outline:hover { background: var(--brand-light); }
+    .btn-ghost { color: var(--muted); background: transparent; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); }
+    .card-body { padding: 24px; }
+
+    .home-hero { min-height: calc(100vh - 64px); display: grid; grid-template-columns: 1.08fr .92fr; align-items: center; gap: 70px; }
+    .eyebrow { color: var(--brand); font-weight: 800; letter-spacing: .08em; }
+    .home-hero h1 { margin: 12px 0 18px; font-size: clamp(2.5rem, 5vw, 4.6rem); line-height: 1.06; letter-spacing: -.04em; }
+    .home-hero .lead { max-width: 580px; color: var(--muted); font-size: 1.12rem; }
+    .home-actions { margin-top: 30px; display: flex; gap: 12px; align-items: center; }
+    .home-actions .btn { padding: 13px 26px; }
+    .home-preview { padding: 26px; background: linear-gradient(145deg, #fff, #faf2f6); }
+    .preview-window { overflow: hidden; border: 1px solid #eadde4; border-radius: 12px; background: #fff; box-shadow: 0 18px 50px rgba(83,31,57,.12); }
+    .preview-top { height: 42px; padding: 0 14px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #eee; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #ddd; }
+    .preview-body { padding: 26px; }
+    .preview-message { width: 74%; margin-left: auto; padding: 12px 15px; border-radius: 14px 14px 4px 14px; background: #f0edf3; }
+    .preview-answer { margin-top: 22px; padding-left: 14px; border-left: 3px solid #e3c3d2; }
+    .preview-link { margin-top: 12px; color: var(--brand); font-weight: 800; }
+
+    .global-rail { position: fixed; inset: 0 auto 0 0; z-index: 30; width: 58px; padding: 12px 8px; border-right: 1px solid #e8e3ea; background: #f8f6fa; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .global-rail[hidden] { display: none; }
+    body.rail-visible [data-view].active { padding-left: 58px; }
+    .session-shell { height: 100vh; display: grid; grid-template-columns: 278px minmax(460px, 1fr) 320px; background: #fbfafc; }
+    .rail-logo, .rail-button { width: 40px; height: 40px; border: 0; border-radius: 10px; display: grid; place-items: center; cursor: pointer; background: transparent; }
+    .rail-logo { color: #fff; background: var(--brand); font-weight: 800; }
+    .rail-button { color: #726b78; }
+    .rail-button.active { color: var(--brand); background: #f0e3eb; }
+    .rail-spacer { flex: 1; }
+    .session-list { padding: 18px; border-right: 1px solid #e8e3ea; background: #f7f5f8; }
+    .session-list h2 { margin-bottom: 18px; }
+    .conversation { padding: 12px; border-radius: 9px; color: var(--brand); background: #f0e3eb; font-weight: 750; }
+    .chat { min-width: 0; display: flex; flex-direction: column; background: #fdfcfe; }
+    .chat-header { min-height: 54px; padding: 15px 22px; color: #fff; background: linear-gradient(90deg, #a2386d, #902957); font-weight: 750; }
+    .chat-scroll { flex: 1; overflow: auto; padding: 48px clamp(26px, 5vw, 70px); }
+    .user-message { max-width: 440px; margin: 0 0 42px auto; padding: 15px 20px; border-radius: 18px 18px 6px 18px; background: #f0edf3; }
+    .ai-message { padding-left: 20px; border-left: 3px solid #e5cbd8; line-height: 1.8; }
+    .html-link { display: inline-block; margin-top: 14px; border: 0; color: var(--brand); background: transparent; font-weight: 800; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+    .composer { margin: 0 36px 18px; padding: 18px; min-height: 105px; border: 1px solid #ddd7e0; border-radius: 18px; background: #fff; color: var(--disabled); }
+    .workspace-panel { padding: 18px; border-left: 1px solid #e8e3ea; background: #f9f8fa; overflow: auto; }
+    .workspace-panel h2 { margin-bottom: 16px; }
+    .file { padding: 8px 4px; color: var(--muted); }
+    .workspace-note { margin-top: 20px; padding: 10px; border-radius: 8px; color: #735263; background: #f3e8ee; font-size: .75rem; }
+
+    .renderer { height: 100vh; display: flex; flex-direction: column; background: #ebe8ec; }
+    .renderer-bar { min-height: 64px; padding: 10px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #ddd7e0; background: #fff; }
+    .renderer-title { min-width: 0; flex: 1; }
+    .renderer-title strong, .renderer-title span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .renderer-title span { color: var(--disabled); font-size: .72rem; }
+    .renderer-actions { display: flex; gap: 8px; }
+    .renderer-stage { flex: 1; min-height: 0; padding: 16px; }
+    .artifact { height: 100%; overflow: auto; padding: clamp(30px, 5vw, 70px); border: 1px solid #d9d3dc; border-radius: 14px; background: linear-gradient(145deg, #fff, #fbf6f9 55%, #f4e4ec); }
+    .artifact-inner { max-width: 900px; margin: auto; }
+    .artifact-label { color: var(--brand); font-weight: 800; letter-spacing: 2px; }
+    .artifact h1 { margin-top: 10px; font-size: clamp(2rem, 4vw, 3.2rem); }
+    .artifact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
+    .artifact-cell { padding: 20px; border: 1px solid #eadfe5; border-radius: 14px; background: rgba(255,255,255,.88); }
+    .artifact-result { margin-top: 24px; padding: 22px; border-radius: 14px; color: #fff; background: var(--brand); }
+
+    .field { margin-bottom: 16px; }
+    .field label { display: block; margin-bottom: 6px; font-weight: 750; }
+    .field input, .field textarea { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 11px 12px; background: #fff; }
+    .field textarea { min-height: 88px; resize: vertical; }
+    .required, .error { color: var(--error); }
+    .error { display: none; margin-top: 10px; font-size: .82rem; }
+    .run-box { min-height: 390px; display: grid; place-items: center; text-align: center; }
+    .run-toolbar { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+    td:first-child { width: 130px; color: var(--muted); }
+
+    .search { position: relative; margin-bottom: 18px; }
+    .search input { width: 100%; padding: 13px 16px 13px 44px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+    .search-icon { position: absolute; left: 15px; top: 12px; opacity: .45; }
+    .search-hint { margin-top: 6px; color: var(--disabled); font-size: .76rem; }
+    .sort-row { margin: 18px 0; display: flex; justify-content: space-between; gap: 14px; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; }
+    .app-card { min-height: 250px; padding: 20px; display: flex; flex-direction: column; gap: 12px; transition: .2s; }
+    .app-card:hover, .app-card.highlight { border-color: var(--brand); box-shadow: 0 5px 20px rgba(153,51,102,.14); transform: translateY(-2px); }
+    .app-card.highlight { animation: highlight 1.5s ease; }
+    @keyframes highlight { 0% { box-shadow: 0 0 0 5px rgba(153,51,102,.18); } 100% { box-shadow: var(--shadow); } }
+    .app-main { display: flex; gap: 12px; }
+    .app-icon { width: 48px; height: 48px; flex: 0 0 auto; border-radius: 10px; background: var(--brand-light); display: grid; place-items: center; font-size: 24px; }
+    .app-info { min-width: 0; }
+    .app-name { border: 0; padding: 0; color: var(--text); background: transparent; font-size: 1rem; font-weight: 800; cursor: pointer; text-align: left; }
+    .app-name:hover, .detail-link:hover { color: var(--brand); }
+    .app-author { margin-top: 2px; color: var(--muted); font-size: .78rem; }
+    .app-problem { margin-top: 8px; color: var(--muted); }
+    .app-scenario { margin-top: 5px; color: var(--disabled); }
+    .app-summary { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .detail-link { padding: 0; }
+    .card-bottom { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .like-btn { border: 0; color: var(--muted); background: transparent; cursor: pointer; }
+    .stat { color: var(--disabled); font-size: .78rem; }
+    .use-btn { margin-left: auto; }
+    .empty { padding: 50px 24px; text-align: center; color: var(--muted); }
+    .detail-layout { display: grid; gap: 22px; }
+    .detail-card { padding: 28px; }
+    .detail-title { display: flex; align-items: center; gap: 14px; }
+    .detail-section { margin-top: 28px; }
+    .detail-section h3 { margin-bottom: 8px; font-size: .94rem; }
+    .detail-copy { color: var(--muted); white-space: pre-wrap; line-height: 1.75; }
+    .detail-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .detail-stat { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--muted); }
+    .detail-stat strong { display: block; margin-top: 4px; color: var(--text); font-size: 1.35rem; }
+    .detail-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .toast { position: fixed; right: 24px; bottom: 24px; z-index: 100; padding: 12px 16px; border-radius: 10px; color: #fff; background: #2d2d2d; box-shadow: 0 8px 28px rgba(0,0,0,.22); }
+
+    @media (max-width: 980px) {
+      .home-hero { grid-template-columns: 1fr; gap: 30px; padding: 60px 0; }
+      .session-shell { grid-template-columns: minmax(420px, 1fr); }
+      .session-list, .workspace-panel { display: none; }
+    }
+    @media (max-width: 700px) {
+      .appbar-inner, .page, .page.narrow { width: min(100% - 28px, 1160px); }
+      .home-hero h1 { font-size: 2.65rem; }
+      .home-preview { display: none; }
+      .session-shell { grid-template-columns: minmax(0, 1fr); }
+      .chat-scroll { padding: 28px 18px; }
+      .composer { margin: 0 14px 14px; }
+      .renderer-bar { flex-wrap: wrap; }
+      .renderer-actions { width: 100%; }
+      .renderer-actions .btn { flex: 1; }
+      .artifact-grid, .grid { grid-template-columns: 1fr; }
+      .detail-stats { grid-template-columns: 1fr; }
+      .detail-actions { justify-content: stretch; }
+      .detail-actions .btn { flex: 1; }
+      .artifact { padding: 28px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="global-rail" id="global-rail" aria-label="HiTouch 主导航" hidden><button class="rail-logo" data-action="home" aria-label="返回首页">H</button><button class="rail-button" data-rail-module="chat" data-action="workspace" title="聊天" aria-label="聊天">💬</button><button class="rail-button" title="日历" aria-label="日历">🗓</button><button class="rail-button" title="知识" aria-label="知识">🧠</button><button class="rail-button app-center-entry" data-rail-module="app-center" data-action="app-center" title="应用中心" aria-label="应用中心">📦</button><div class="rail-spacer"></div></nav>
+  <section data-view="home" class="active">
+    <header class="appbar"><div class="appbar-inner"><button class="brand-logo" data-action="home">H</button><div class="brand-name">大旗财税AI</div><div class="avatar">R</div></div></header>
+    <main class="page home-hero">
+      <div><div class="eyebrow">HITOUCH AI</div><h1>把好用的工具<br>沉淀给整个团队</h1><p class="lead">从 Hermes 对话中预览和发布 HTML 应用，让同事快速发现、使用并反馈真正有价值的业务工具。</p><div class="home-actions"><button class="btn btn-primary" data-action="workspace">进入工作台 →</button><span class="hint">一期 MVP 交互演示</span></div></div>
+      <div class="home-preview card"><div class="preview-window"><div class="preview-top"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div><div class="preview-body"><div class="preview-message">请把刚才的增值税测算页面整理成一个可复用的小工具。</div><div class="preview-answer"><strong>页面已经生成。</strong><div class="preview-link">site.hitouch.cc/rita/vat-quick-calculator.html</div></div></div></div></div>
+    </main>
+  </section>
+
+  <section data-view="workspace">
+    <main class="session-shell">
+      <aside class="session-list"><h2>聊天</h2><div class="conversation">增值税快速测算工具</div><p class="hint" style="margin-top:18px">从对话正文打开 HTML 页面。</p></aside>
+      <section class="chat"><header class="chat-header">增值税快速测算工具</header><div class="chat-scroll"><div class="user-message">请把刚才的增值税测算页面整理成一个可复用的小工具。</div><div class="ai-message"><p>页面已经生成，你可以先查看运行效果。</p><button class="html-link" data-action="artifact">https://site.hitouch.cc/rita/vat-quick-calculator.html</button><p class="hint">点击地址，在 HiTouch 当前页面预览。</p></div></div><div class="composer">消息 HiTouch…<div style="margin-top:34px">📎　📁　◐ medium　　　　　　　　　↑</div></div></section>
+      <aside class="workspace-panel"><h2>Workspace</h2><div class="file">📁 public</div><div class="file">📄 vat-quick-calculator.html</div><div class="file">📄 calculator-data.json</div><p class="workspace-note">Workspace 只展示文件；应用发布入口在对话正文的 HTML 预览中。</p></aside>
+    </main>
+  </section>
+
+  <section data-view="artifact">
+    <main class="renderer"><header class="renderer-bar"><button class="back-link" data-action="workspace">← 返回 Session</button><div class="renderer-title"><strong>增值税快速测算工具.html</strong><span>来自当前 Session 对话 · site.hitouch.cc/rita/vat-quick-calculator.html</span></div><div class="renderer-actions"><button class="btn btn-primary btn-sm" data-action="publish-form">📦 发布到应用中心</button></div></header><div class="renderer-stage"><div class="artifact"><div class="artifact-inner"><div class="artifact-label">HITOUCH HTML ARTIFACT</div><h1>🧮 增值税快速测算工具</h1><p class="muted" style="margin-top:12px;font-size:1rem">输入业务数据，即时完成税额测算并生成清晰结果。</p><div class="artifact-grid"><div class="artifact-cell"><span class="muted">纳税人类型</span><h2>一般纳税人</h2></div><div class="artifact-cell"><span class="muted">未税金额</span><h2>¥100,000</h2></div><div class="artifact-cell"><span class="muted">适用税率</span><h2>6%</h2></div></div><div class="artifact-result"><span>预计税费合计</span><h2>¥8,210.00</h2></div></div></div></div></main>
+  </section>
+
+  <section data-view="publish-form"><header class="appbar"><div class="appbar-inner"><button class="brand-logo" data-action="home">H</button><div class="brand-name">大旗财税AI</div><div class="avatar">R</div></div></header><main class="page narrow"><header class="page-header"><button class="back-link" data-action="artifact">← 返回 HTML 页面</button><h1>确认应用信息</h1></header><section class="card card-body"><p class="muted" style="margin-bottom:20px">请填写应用信息。第一期发布后将创建一个新应用。</p><div class="field"><label>应用名称 <span class="required">*</span></label><input id="publish-name" placeholder="例如：增值税快速测算工具"></div><div class="field"><label>图标 <span class="required">*</span></label><input id="publish-icon" placeholder="例如：🧮"></div><div class="field"><label>解决的问题 <span class="required">*</span></label><textarea id="publish-problem" placeholder="说明应用帮助用户解决什么问题"></textarea></div><div class="field"><label>适用场景 <span class="required">*</span></label><textarea id="publish-scenario" placeholder="说明在什么场景下使用"></textarea></div><button class="btn btn-primary" style="width:100%" data-action="publish-next">下一步：页面预览 →</button><div class="error" id="publish-form-error"></div></section></main></section>
+
+  <section data-view="publish-preview"><header class="appbar"><div class="appbar-inner"><button class="brand-logo" data-action="home">H</button><div class="brand-name">大旗财税AI</div><div class="avatar">R</div></div></header><main class="page narrow"><header class="page-header"><button class="back-link" data-action="publish-form">← 上一步</button><h1>页面预览与确认发布</h1></header><section class="card"><div class="run-toolbar"><strong id="preview-title"></strong></div><div class="run-box" id="publish-preview-box"></div></section><section class="card card-body" style="margin-top:18px"><h3>📋 发布确认</h3><table id="publish-summary" style="margin-top:10px"></table><div style="display:flex;gap:8px;margin-top:18px"><button class="btn btn-primary" style="flex:1" data-action="publish-confirm">确认发布</button><button class="btn btn-ghost" data-action="artifact">取消</button></div><div class="error" id="publish-confirm-error"></div><p class="hint" style="margin-top:10px">发布后立即对全部已登录同事可见，无需审批。</p></section></main></section>
+
+  <section data-view="app-center"><header class="appbar"><div class="appbar-inner"><div class="brand-name">大旗财税AI</div><div class="avatar">R</div></div></header><main class="page"><header class="page-header"><h1>应用中心</h1></header><div class="search"><span class="search-icon">🔍</span><input id="app-search" type="search" placeholder="搜索应用名称、解决的问题、适用场景…"><div class="search-hint">搜索范围：应用名称 · 解决的问题 · 适用场景</div></div><div class="sort-row"><span>默认按点赞人数排序，同赞时发布时间更晚的应用在前</span><span id="app-count"></span></div><section class="grid" id="app-grid"></section></main></section>
+
+  <section data-view="app-detail"><header class="appbar"><div class="appbar-inner"><div class="brand-name">大旗财税AI</div><div class="avatar">R</div></div></header><main class="page narrow"><header class="page-header"><button class="back-link" data-action="app-center">← 返回应用中心</button><h1>应用详情</h1></header><div id="app-detail-content"></div></main></section>
+
+  <section data-view="app-run"><main class="renderer"><header class="renderer-bar"><button class="back-link" data-action="app-center">← 返回应用中心</button><div class="renderer-title"><strong id="run-file-name"></strong><span id="run-file-source"></span></div></header><div class="renderer-stage"><div class="artifact"><div class="artifact-inner" id="run-artifact"></div></div></div></main></section>
+
+  <script id="demo-logic">
+    const seedApps = [
+      { id: 1, name: "增值税计算器", icon: "🧮", author: "Rita", problem: "快速计算增值税及附加税费，支持一般纳税人和小规模纳税人。", scenario: "销售与财务日常报价、开票前的税额核算", likes: 42, usageCount: 356, usageUsers: 89, version: "1.0.0", publishedAt: "2026-07-15", online: true },
+      { id: 2, name: "个税测算工具", icon: "💰", author: "Rita", problem: "输入税前工资，自动计算个税、社保公积金。", scenario: "HR 薪酬核算、员工预估税后收入", likes: 38, usageCount: 289, usageUsers: 67, version: "1.0.0", publishedAt: "2026-07-14", online: true },
+      { id: 3, name: "香港利得税测算", icon: "🇭🇰", author: "William", problem: "根据香港公司收入和可扣除开支测算利得税。", scenario: "香港公司年度税务申报前的税额预估", likes: 35, usageCount: 203, usageUsers: 52, version: "1.0.0", publishedAt: "2026-07-10", online: true },
+      { id: 4, name: "汇率转换器", icon: "💱", author: "Jett", problem: "实时汇率查询与多币种批量换算。", scenario: "跨境业务报价、外币合同金额换算", likes: 31, usageCount: 412, usageUsers: 76, version: "1.0.0", publishedAt: "2026-07-12", online: true },
+      { id: 5, name: "客户信息收集表", icon: "📝", author: "William", problem: "标准化客户信息收集并生成在线表单。", scenario: "新客户接洽时的信息登记与归档", likes: 25, usageCount: 156, usageUsers: 41, version: "1.0.0", publishedAt: "2026-07-08", online: true }
+    ];
+    const initialState = () => ({
+      currentView: "home",
+      apps: structuredClone(seedApps),
+      likedIds: new Set([2]),
+      usedIds: new Set(),
+      processedPublicationIds: new Map(),
+      currentAppId: null,
+      draft: { name: "", icon: "", problem: "", scenario: "" },
+      publicationId: "publication-demo-1",
+      publishedAppId: null,
+      search: "",
+      toast: ""
+    });
+    let state = initialState();
+    function normalizeName(name) { return String(name || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("zh-CN"); }
+    function validateDraft(draft) {
+      const clean = { name: String(draft.name || "").trim(), icon: String(draft.icon || "").trim(), problem: String(draft.problem || "").trim(), scenario: String(draft.scenario || "").trim() };
+      if (!clean.name || !clean.icon || !clean.problem || !clean.scenario) return { ok: false, error: "请填写应用名称、图标、解决的问题和适用场景。", clean };
+      if (state.apps.some(app => normalizeName(app.name) === normalizeName(clean.name))) return { ok: false, error: `名称「${clean.name}」已被占用，请换一个。`, clean };
+      return { ok: true, clean };
+    }
+    function getRailModule(view) {
+      if (view === "home") return null;
+      return ["app-center", "app-detail", "app-run"].includes(view) ? "app-center" : "chat";
+    }
+    function navigate(view, payload = {}) {
+      state.currentView = view;
+      if (payload.appId !== undefined) state.currentAppId = Number(payload.appId);
+      window.renderDemo?.();
+      return state.currentView;
+    }
+    function publishApp(draft) {
+      if (state.processedPublicationIds.has(state.publicationId)) return { ok: true, appId: state.processedPublicationIds.get(state.publicationId), duplicate: true };
+      const validation = validateDraft(draft);
+      if (!validation.ok) return validation;
+      const appId = state.apps.length ? Math.max(...state.apps.map(app => app.id)) + 1 : 1;
+      state.apps.push({ id: appId, ...validation.clean, author: "Rita", likes: 0, usageCount: 0, usageUsers: 0, version: "1.0.0", publishedAt: new Date().toISOString().slice(0, 10), online: true });
+      state.processedPublicationIds.set(state.publicationId, appId);
+      state.publishedAppId = appId;
+      state.toast = "发布成功，应用已进入应用中心。";
+      state.currentView = "app-center";
+      window.renderDemo?.();
+      return { ok: true, appId, duplicate: false };
+    }
+    function toggleLike(appId) {
+      const app = state.apps.find(item => item.id === Number(appId));
+      if (!app) return null;
+      if (state.likedIds.has(app.id)) { state.likedIds.delete(app.id); app.likes = Math.max(0, app.likes - 1); }
+      else { state.likedIds.add(app.id); app.likes += 1; }
+      window.renderDemo?.();
+      return app;
+    }
+    function openAppDetail(appId) {
+      const app = state.apps.find(item => item.id === Number(appId) && item.online);
+      if (!app) return null;
+      state.currentAppId = app.id;
+      state.currentView = "app-detail";
+      window.renderDemo?.();
+      return app;
+    }
+    function openApp(appId) {
+      const app = state.apps.find(item => item.id === Number(appId) && item.online);
+      if (!app) return null;
+      app.usageCount += 1;
+      if (!state.usedIds.has(app.id)) { state.usedIds.add(app.id); app.usageUsers += 1; }
+      state.currentAppId = app.id;
+      state.currentView = "app-run";
+      window.renderDemo?.();
+      return app;
+    }
+    function resetDemo() { state = initialState(); window.renderDemo?.(); return state; }
+    window.DemoApp = { getState: () => state, normalizeName, validateDraft, getRailModule, navigate, publishApp, toggleLike, openAppDetail, openApp, resetDemo };
+  </script>
+  <script>
+    const D = window.DemoApp;
+    const escapeHtml = value => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    function showToast(message) { document.querySelector(".toast")?.remove(); if (!message) return; const node = document.createElement("div"); node.className = "toast"; node.textContent = message; document.body.appendChild(node); setTimeout(() => node.remove(), 3000); }
+    function renderPublishForm() {
+      const state = D.getState();
+      document.getElementById("publish-name").value = state.draft.name;
+      document.getElementById("publish-icon").value = state.draft.icon;
+      document.getElementById("publish-problem").value = state.draft.problem;
+      document.getElementById("publish-scenario").value = state.draft.scenario;
+      document.getElementById("publish-form-error").style.display = "none";
+    }
+    function readDraft() { return { name: document.getElementById("publish-name").value.trim(), icon: document.getElementById("publish-icon").value.trim(), problem: document.getElementById("publish-problem").value.trim(), scenario: document.getElementById("publish-scenario").value.trim() }; }
+    function goToPublishPreview() { const state = D.getState(); const draft = readDraft(); const result = D.validateDraft(draft); if (!result.ok) { const error = document.getElementById("publish-form-error"); error.textContent = result.error; error.style.display = "block"; return; } state.draft = result.clean; D.navigate("publish-preview"); }
+    function renderPublishPreview() { const draft = D.getState().draft; document.getElementById("preview-title").textContent = `▶️ ${draft.name} — 预览`; document.getElementById("publish-preview-box").innerHTML = `<div><div style="font-size:58px">${escapeHtml(draft.icon)}</div><h2>${escapeHtml(draft.name)}</h2><p class="muted">作者：Rita（系统确定）</p><p class="hint" style="margin-top:12px">HTML 快照：增值税快速测算工具.html</p></div>`; document.getElementById("publish-summary").innerHTML = `<tr><td>名称</td><td>${escapeHtml(draft.name)}</td></tr><tr><td>操作</td><td>创建新应用</td></tr><tr><td>版本</td><td>v1.0.0</td></tr><tr><td>初始统计</td><td>点赞 0 · 使用人数 0 · 使用次数 0</td></tr>`; }
+    function confirmPublish() { const result = D.publishApp(D.getState().draft); if (!result.ok) { const error = document.getElementById("publish-confirm-error"); error.textContent = result.error; error.style.display = "block"; } }
+    function renderAppCenter() { const state = D.getState(); const query = state.search.trim().toLocaleLowerCase("zh-CN"); const apps = state.apps.filter(app => app.online && (!query || [app.name, app.problem, app.scenario].some(value => value.toLocaleLowerCase("zh-CN").includes(query)))).sort((a,b) => b.likes - a.likes || new Date(b.publishedAt) - new Date(a.publishedAt)); document.getElementById("app-search").value = state.search; document.getElementById("app-count").textContent = `共 ${apps.length} 个应用`; document.getElementById("app-grid").innerHTML = apps.length ? apps.map(app => `<article class="card app-card ${app.id === state.publishedAppId ? "highlight" : ""}"><div class="app-main"><div class="app-icon">${escapeHtml(app.icon)}</div><div class="app-info"><button class="app-name detail-link" data-detail="${app.id}">${escapeHtml(app.name)}</button><div class="app-author">${escapeHtml(app.author)} · v${app.version}</div><div class="app-problem app-summary">${escapeHtml(app.problem)}</div><div class="app-scenario app-summary">适用：${escapeHtml(app.scenario)}</div></div></div><div class="card-bottom"><button class="like-btn" data-like="${app.id}">${state.likedIds.has(app.id) ? "👍" : "👍🏻"} ${app.likes}</button><span class="stat" title="使用人数">👤 ${app.usageUsers}</span><span class="stat" title="使用次数">▶️ ${app.usageCount}</span><button class="btn btn-ghost btn-sm" data-detail="${app.id}">查看详情</button><button class="btn btn-primary btn-sm use-btn" data-use="${app.id}">▶ 使用</button></div></article>`).join("") : `<div class="card empty" style="grid-column:1/-1">没有找到匹配的应用</div>`; document.querySelectorAll("[data-like]").forEach(button => button.onclick = () => D.toggleLike(button.dataset.like)); document.querySelectorAll("[data-use]").forEach(button => button.onclick = () => D.openApp(button.dataset.use)); document.querySelectorAll("[data-detail]").forEach(button => button.onclick = () => D.openAppDetail(button.dataset.detail)); if (state.toast) { showToast(state.toast); state.toast = ""; } }
+    function renderAppDetail() { const state = D.getState(); const app = state.apps.find(item => item.id === state.currentAppId && item.online); if (!app) { D.navigate("app-center"); return; } const liked = state.likedIds.has(app.id); document.getElementById("app-detail-content").innerHTML = `<div class="detail-layout"><section class="detail-stats"><div class="detail-stat">👍 点赞人数 <strong>${app.likes}</strong></div><div class="detail-stat">👤 使用人数 <strong>${app.usageUsers}</strong></div><div class="detail-stat">▶️ 使用次数 <strong>${app.usageCount}</strong></div></section><div class="detail-actions"><button class="btn btn-outline" data-detail-like="${app.id}">${liked ? "👍 已点赞" : "👍 点赞"}</button><button class="btn btn-primary" data-detail-use="${app.id}">▶ 使用</button></div><section class="card detail-card"><div class="detail-title"><div class="app-icon">${escapeHtml(app.icon)}</div><div><h2>${escapeHtml(app.name)}</h2><div class="app-author">${escapeHtml(app.author)} · v${escapeHtml(app.version)} · 发布于 ${escapeHtml(app.publishedAt)}</div></div></div><div class="detail-section"><h3>解决的问题</h3><p class="detail-copy">${escapeHtml(app.problem)}</p></div><div class="detail-section"><h3>适用场景</h3><p class="detail-copy">${escapeHtml(app.scenario)}</p></div></section></div>`; document.querySelector("[data-detail-like]").onclick = () => D.toggleLike(app.id); document.querySelector("[data-detail-use]").onclick = () => D.openApp(app.id); }
+    function renderAppRun() { const app = D.getState().apps.find(item => item.id === D.getState().currentAppId); if (!app) { D.navigate("app-center"); return; } document.getElementById("run-file-name").textContent = app.name; document.getElementById("run-file-source").textContent = `${app.author} · v${app.version} · 已成功加载`; document.getElementById("run-artifact").innerHTML = `<div class="artifact-label">HITOUCH APP SNAPSHOT</div><h1>${escapeHtml(app.icon)} ${escapeHtml(app.name)}</h1><p class="muted" style="margin-top:12px;font-size:1rem">${escapeHtml(app.problem)}</p><div class="artifact-grid"><div class="artifact-cell"><span class="muted">应用版本</span><h2>v${app.version}</h2></div><div class="artifact-cell"><span class="muted">作者</span><h2>${escapeHtml(app.author)}</h2></div><div class="artifact-cell"><span class="muted">适用场景</span><h2>${escapeHtml(app.scenario)}</h2></div></div><div class="artifact-result"><span>运行状态</span><h2>HTML 快照已成功加载</h2></div>`; }
+    function renderGlobalRail() { const module = D.getRailModule(D.getState().currentView); const rail = document.getElementById("global-rail"); rail.hidden = module === null; document.body.classList.toggle("rail-visible", module !== null); rail.querySelectorAll("[data-rail-module]").forEach(button => button.classList.toggle("active", button.dataset.railModule === module)); }
+    window.renderDemo = function () { const state = D.getState(); renderGlobalRail(); document.querySelectorAll("[data-view]").forEach(view => view.classList.toggle("active", view.dataset.view === state.currentView)); if (state.currentView === "publish-form") renderPublishForm(); if (state.currentView === "publish-preview") renderPublishPreview(); if (state.currentView === "app-center") renderAppCenter(); if (state.currentView === "app-detail") renderAppDetail(); if (state.currentView === "app-run") renderAppRun(); window.scrollTo?.(0,0); };
+    document.addEventListener("click", event => { const target = event.target.closest("[data-action]"); if (!target) return; const action = target.dataset.action; if (action === "publish-next") goToPublishPreview(); else if (action === "publish-confirm") confirmPublish(); else D.navigate(action); });
+    document.getElementById("app-search").addEventListener("input", event => { D.getState().search = event.target.value; renderAppCenter(); });
+    D.resetDemo();
+  </script>
+</body>
+</html>
