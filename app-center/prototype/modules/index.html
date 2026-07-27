@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HiTouch AI 工作台</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="assets/base.css">
+</head>
+<body>
+  <div data-appbar></div>
+  <main class="page">
+    <header style="margin-bottom:28px"><p class="muted">HiTouch AI 工作台</p><h1 style="font-size:2rem">常用功能</h1></header>
+    <section class="grid">
+      <a class="card home-card" href="app-center.html"><div class="app-icon">📦</div><div><h2>应用中心</h2><p class="muted">发现并在线使用团队发布的 HTML 应用</p></div></a>
+      <a class="card home-card" href="session.html?reset=1"><div class="app-icon">💬</div><div><h2>Hermes</h2><p class="muted">从 Session HTML 页面发布新的应用</p></div></a>
+    </section>
+    <section class="card card-body" style="margin-top:24px"><strong>一期 MVP</strong><p class="muted" style="margin-top:6px">本原型演示发布、发现、搜索、点赞和在线使用闭环。</p></section>
+  </main>
+  <script src="assets/data.js"></script><script src="assets/common.js"></script>
+  <script>if (HiTouchDemo.params().get("reset") === "1") HiTouchDemo.resetState();</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Hermes Session — HiTouch AI</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="assets/base.css">
+</head>
+<body class="session-page">
+  <main class="session-shell">
+    <nav class="session-rail" aria-label="Hermes 主导航"><a class="rail-logo" href="index.html">H</a><span class="rail-button active">💬</span><span class="rail-button">🗓</span><span class="rail-button">🧠</span><div class="rail-spacer"></div><a class="rail-button" href="app-center.html" title="应用中心">📦</a></nav>
+    <aside class="session-list"><h2>聊天</h2><div class="conversation">增值税快速测算工具</div><p class="hint" style="margin-top:18px">HTML 打开与发布入口位于对话正文。</p></aside>
+    <section class="chat"><header class="chat-header">增值税快速测算工具</header><div class="chat-scroll" id="messages"></div><div class="composer">消息 HiTouch…<div style="margin-top:34px">📎　📁　◐ medium　　　　　　　　　↑</div></div></section>
+    <aside class="workspace"><h2>Workspace</h2><div class="file">📄 ffmpeg</div><div class="file">📁 public</div><div class="file">📁 video-project</div><div class="file">📄 vat-calculator.html</div><p class="workspace-note">Workspace 保持现有文件管理行为；发布只能从对话正文的 HTML 地址进入。</p></aside>
+  </main>
+  <script src="assets/data.js"></script>
+  <script>
+    const D = HiTouchDemo;
+    let flow = D.getFlow();
+    if (!flow || D.params().get("reset") === "1") {
+      flow = D.setFlow({
+        id: `flow-${Date.now()}`,
+        sourceSessionId: "session-vat-demo",
+        sourceMessageId: "message-vat-html",
+        originalName: "增值税快速测算工具.html",
+        originalUrl: "https://site.hitouch.cc/rita/vat-quick-calculator.html",
+        htmlSnapshot: "<!doctype html><title>增值税快速测算工具</title>",
+        checkStatus: "passed",
+        checkError: ""
+      });
+    }
+    document.getElementById("messages").innerHTML = `<div class="user-message">请把刚才的增值税测算页面整理成一个可复用的小工具。</div><div class="ai-message"><p>页面已经生成。</p><a class="html-link" href="${D.path("renderer.html", { flow: flow.id, artifact: "original", from: "session.html" })}">${D.escapeHtml(flow.originalUrl)}</a><p class="hint">点击地址，在 HiTouch 当前页面的 HTML 渲染器中打开并发布。</p></div>`;
+  </script>
+</body>
+</html>

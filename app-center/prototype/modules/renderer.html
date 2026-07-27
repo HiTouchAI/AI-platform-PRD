@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HTML 渲染器 — HiTouch AI</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="assets/base.css">
+</head>
+<body class="renderer-page">
+  <main class="renderer">
+    <header class="renderer-bar"><a class="back-link" id="back">← 返回</a><div class="renderer-title"><strong id="file-name"></strong><span id="file-source"></span></div><div class="renderer-actions"><a class="btn btn-primary btn-sm" id="publish">📦 发布到应用中心</a></div></header>
+    <section class="renderer-stage"><div class="artifact"><div class="artifact-inner"><div style="color:var(--brand);font-weight:800;letter-spacing:2px">HITOUCH HTML ARTIFACT</div><h1 id="artifact-title"></h1><p class="muted" id="artifact-copy" style="margin-top:12px;font-size:1rem"></p><div class="artifact-grid" id="artifact-grid"></div><div class="artifact-result" id="artifact-result"></div></div></div></section>
+  </main>
+  <script src="assets/data.js"></script><script src="assets/common.js"></script>
+  <script>
+    const D = HiTouchDemo;
+    const query = D.params();
+    const publishedAppId = Number(query.get("appId"));
+
+    function fillArtifact({ icon, title, copy, cells, result }) {
+      document.getElementById("artifact-title").textContent = `${icon} ${title}`;
+      document.getElementById("artifact-copy").textContent = copy;
+      document.getElementById("artifact-grid").innerHTML = cells.map(item => `<div class="artifact-cell"><span class="muted">${D.escapeHtml(item.label)}</span><h2>${D.escapeHtml(item.value)}</h2></div>`).join("");
+      document.getElementById("artifact-result").innerHTML = `<span>${D.escapeHtml(result.label)}</span><h2>${D.escapeHtml(result.value)}</h2>`;
+    }
+
+    function ensureFlow() {
+      let flow = D.getFlow();
+      if (!flow || (query.get("flow") && query.get("flow") !== flow.id)) {
+        flow = D.setFlow({
+          id: query.get("flow") || `flow-${Date.now()}`,
+          sourceSessionId: "session-vat-demo",
+          sourceMessageId: "message-vat-html",
+          originalName: "增值税快速测算工具.html",
+          originalUrl: "https://site.hitouch.cc/rita/vat-quick-calculator.html",
+          htmlSnapshot: "<!doctype html><title>增值税快速测算工具</title>",
+          checkStatus: "passed",
+          checkError: ""
+        });
+      }
+      return flow;
+    }
+
+    function renderPublishedApplication() {
+      let app = D.getApp(publishedAppId);
+      const returnPath = HiTouchUI.safeReturn(query.get("from"), "app-center.html");
+      if (!app?.online) {
+        document.querySelector(".renderer").innerHTML = `<div class="card empty" style="margin:auto;max-width:520px"><h2>应用不存在或已下架</h2><p>当前无法查看或使用这个应用。</p><a class="btn btn-outline" style="margin-top:16px" href="app-center.html">返回应用中心</a></div>`;
+        return;
+      }
+
+      let openId = history.state?.hitouchOpenId;
+      if (!openId) {
+        openId = `open-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        history.replaceState({ ...(history.state || {}), hitouchOpenId: openId }, "");
+      }
+      app = D.recordUse(app.id, openId);
+
+      const back = document.getElementById("back");
+      back.href = returnPath;
+      back.textContent = "← 返回应用中心";
+      document.getElementById("file-name").textContent = app.name;
+      document.getElementById("file-source").textContent = `${app.author} · v${app.version} · 已成功加载`;
+      document.getElementById("publish").hidden = true;
+      fillArtifact({
+        icon: app.icon,
+        title: app.name,
+        copy: app.problem,
+        cells: [
+          { label: "应用版本", value: `v${app.version}` },
+          { label: "作者", value: app.author },
+          { label: "适用场景", value: app.scenario }
+        ],
+        result: { label: "运行状态", value: "HTML 快照已成功加载" }
+      });
+    }
+
+    function renderSessionArtifact() {
+      const flow = ensureFlow();
+      document.getElementById("back").href = D.path("session.html", { flow: flow.id });
+      document.getElementById("back").textContent = "← 返回 Session";
+      document.getElementById("file-name").textContent = flow.originalName;
+      document.getElementById("file-source").textContent = `来自当前 Session 对话 · ${flow.originalUrl}`;
+      document.getElementById("publish").href = D.path("renderer.html", { flow: flow.id, artifact: "original", view: "publish" });
+      fillArtifact({
+        icon: "🧮",
+        title: "增值税快速测算工具",
+        copy: "输入业务数据，即时完成税额测算并生成清晰结果。",
+        cells: [
+          { label: "纳税人类型", value: "一般纳税人" },
+          { label: "未税金额", value: "¥100,000" },
+          { label: "适用税率", value: "6%" }
+        ],
+        result: { label: "预计税费合计", value: "¥8,210.00" }
+      });
+    }
+
+    function renderPublication() {
+      const flow = D.getFlow();
+      const requestedFlowId = query.get("flow");
+      let submitting = false;
+      let draft = { name: "", icon: "", problem: "", scenario: "" };
+
+      document.title = "发布应用 — HiTouch AI";
+      document.body.className = "";
+      document.body.innerHTML = `<div data-appbar></div><main class="page narrow" id="publication"></main>`;
+      HiTouchUI.mountAppBar();
+      const page = document.getElementById("publication");
+
+      if (!flow || (requestedFlowId && requestedFlowId !== flow.id)) {
+        page.innerHTML = `<div class="card empty"><h2>发布上下文已失效</h2><p>请返回 Session，重新从 HTML 渲染器发起发布。</p><a class="btn btn-outline" style="margin-top:16px" href="session.html">返回 Session</a></div>`;
+        return;
+      }
+
+      function rendererUrl() { return D.path("renderer.html", { flow: flow.id, artifact: "original", from: "session.html" }); }
+
+      function renderForm() {
+        page.innerHTML = `<header class="page-header"><a class="back-link" href="${rendererUrl()}">← 返回 HTML 页面</a><h1>确认应用信息</h1></header>
+          <section class="card card-body"><p class="muted" style="margin-bottom:20px">请填写应用信息。第一期发布后将创建一个新应用。</p>
+            <div class="field"><label>应用名称 <span class="required">*</span></label><input id="name" value="${D.escapeHtml(draft.name)}" placeholder="例如：增值税快速测算工具"></div>
+            <div class="field"><label>图标 <span class="required">*</span></label><input id="icon" value="${D.escapeHtml(draft.icon)}" placeholder="例如：🧮"></div>
+            <div class="field"><label>解决的问题 <span class="required">*</span></label><textarea id="problem" placeholder="说明应用帮助用户解决什么问题">${D.escapeHtml(draft.problem)}</textarea></div>
+            <div class="field"><label>适用场景 <span class="required">*</span></label><textarea id="scenario" placeholder="说明在什么场景下使用">${D.escapeHtml(draft.scenario)}</textarea></div>
+            <button class="btn btn-primary" style="width:100%" id="next">下一步：页面预览 →</button><div class="error" id="form-error"></div>
+          </section>`;
+        document.getElementById("next").onclick = () => {
+          draft = {
+            name: document.getElementById("name").value.trim(),
+            icon: document.getElementById("icon").value.trim(),
+            problem: document.getElementById("problem").value.trim(),
+            scenario: document.getElementById("scenario").value.trim()
+          };
+          const error = document.getElementById("form-error");
+          if (!draft.name || !draft.icon || !draft.problem || !draft.scenario) {
+            error.textContent = "请填写应用名称、图标、解决的问题和适用场景。";
+            error.style.display = "block";
+            return;
+          }
+          if (D.isDuplicateName(draft.name)) {
+            error.textContent = `名称「${draft.name}」已被占用，请换一个。`;
+            error.style.display = "block";
+            return;
+          }
+          renderPreview();
+        };
+      }
+
+      function renderPreview() {
+        page.innerHTML = `<header class="page-header"><button class="back-link" style="border:0;background:transparent;cursor:pointer" id="back-form">← 上一步</button><h1>页面预览与确认发布</h1></header>
+          <section class="card"><div class="run-toolbar"><strong>▶️ ${D.escapeHtml(draft.name)} — 预览</strong></div><div class="run-box"><div><div style="font-size:54px">${D.escapeHtml(draft.icon)}</div><h2>${D.escapeHtml(draft.name)}</h2><p class="muted">作者：Rita（系统确定）</p><p class="hint" style="margin-top:14px">HTML 快照：${D.escapeHtml(flow.originalName)}</p></div></div></section>
+          <section class="card card-body" style="margin-top:18px"><h3>📋 发布确认</h3><table style="margin-top:10px"><tr><td>名称</td><td>${D.escapeHtml(draft.name)}</td></tr><tr><td>操作</td><td>创建新应用</td></tr><tr><td>版本</td><td>v1.0.0</td></tr><tr><td>初始统计</td><td>点赞 0 · 使用人数 0 · 使用次数 0</td></tr></table><div style="display:flex;gap:8px;margin-top:18px"><button class="btn btn-primary" style="flex:1" id="confirm">确认发布</button><a class="btn btn-ghost" href="${rendererUrl()}">取消</a></div><div class="error" id="publish-error"></div><p class="hint" style="margin-top:10px">发布后立即对全部已登录同事可见，无需审批。</p></section>`;
+        document.getElementById("back-form").onclick = renderForm;
+        document.getElementById("confirm").onclick = commit;
+      }
+
+      function fail(message) {
+        const error = document.getElementById("publish-error");
+        error.textContent = message;
+        error.style.display = "block";
+        submitting = false;
+        document.getElementById("confirm").disabled = false;
+      }
+
+      function commit() {
+        if (submitting) return;
+        submitting = true;
+        document.getElementById("confirm").disabled = true;
+        const result = D.createPublishedApp(draft, flow.id);
+        if (!result.ok) {
+          fail(result.error);
+          return;
+        }
+        location.href = D.path("app-center.html", { published: 1, id: result.appId });
+      }
+
+      renderForm();
+    }
+
+    if (publishedAppId) renderPublishedApplication();
+    else if (query.get("view") === "publish") renderPublication();
+    else renderSessionArtifact();
+  </script>
+</body>
+</html>
