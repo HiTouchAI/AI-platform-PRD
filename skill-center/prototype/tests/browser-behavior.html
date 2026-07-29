@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Skill 中心浏览器行为测试</title>
+  <link rel="stylesheet" href="../assets/base.css">
+</head>
+<body>
+  <main id="fixture"></main>
+  <pre id="test-results" data-status="running">running</pre>
+  <script src="../assets/data.js"></script>
+  <script src="../assets/common.js"></script>
+  <script src="../assets/skill-admin.js"></script>
+  <script>
+  (async function () {
+    "use strict";
+
+    var failures = [];
+
+    function check(condition, message) {
+      if (!condition) failures.push(message);
+    }
+
+    function wait(ms) {
+      return new Promise(function (resolve) {
+        window.setTimeout(resolve, ms);
+      });
+    }
+
+    function finish() {
+      var result = document.getElementById("test-results");
+      result.dataset.status = failures.length ? "failed" : "passed";
+      result.textContent = failures.length ? failures.join("\n") : "all browser behaviors passed";
+    }
+
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      S.resetState();
+
+      var fixture = document.getElementById("fixture");
+      var listenerRegistrations = { click: 0, keydown: 0, focusout: 0 };
+      var originalAddEventListener = EventTarget.prototype.addEventListener;
+      EventTarget.prototype.addEventListener = function (type, listener, options) {
+        if (this.id === "admin-skill-rows" &&
+            Object.prototype.hasOwnProperty.call(listenerRegistrations, type)) {
+          listenerRegistrations[type] += 1;
+        }
+        return originalAddEventListener.call(this, type, listener, options);
+      };
+      var confirmCount = 0;
+      var originalConfirm = UI.confirm;
+      UI.confirm = function (options) {
+        confirmCount += 1;
+        return originalConfirm(options);
+      };
+
+      Admin.mount(fixture);
+      check(fixture.textContent.indexOf("组织同步") === -1, "未接入企微时不应显示组织同步状态");
+      check(fixture.textContent.indexOf("最近同步") === -1, "未接入企微时不应显示同步时间");
+      var statusTabs = fixture.querySelectorAll("[data-status-filter]");
+      check(statusTabs.length === 3, "管理列表应提供全部、启用中、已停用三个快捷 Tab");
+      check(fixture.querySelector('[data-status-filter="all"]').classList.contains("active"),
+        "管理列表默认应选中全部");
+      var search = fixture.querySelector("#admin-search");
+      fixture.querySelector('[data-status-filter="inactive"]').click();
+      check(fixture.textContent.indexOf("新同事入职助手") !== -1 &&
+        fixture.textContent.indexOf("钉钉办公助手") === -1,
+        "已停用 Tab 应只展示已停用 Skill");
+      search.value = "合同";
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+      check(fixture.textContent.indexOf("合同风险检查") !== -1 &&
+        fixture.textContent.indexOf("新同事入职助手") === -1,
+        "启用状态快捷 Tab 应与关键词搜索叠加");
+      fixture.querySelector('[data-status-filter="all"]').click();
+      search.value = "钉钉";
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+      check(listenerRegistrations.click === 1, "管理表格 click 委托监听只能绑定一次");
+      check(listenerRegistrations.keydown === 0, "轻量管理不应再绑定更多菜单键盘监听");
+      check(listenerRegistrations.focusout === 0, "轻量管理不应再绑定更多菜单焦点监听");
+      check(!fixture.querySelector("[data-menu-trigger]"), "默认 Skill 管理不应保留删除或更多菜单");
+
+      fixture.querySelector('[data-row-action="versions"]').click();
+      var versionsDrawer = document.querySelector(".drawer-overlay");
+      check(versionsDrawer.textContent.indexOf("ZIP / 校验") !== -1, "版本抽屉应展示 ZIP 与校验值");
+      check(versionsDrawer.textContent.indexOf("Git commit") !== -1, "版本抽屉应展示 git commit");
+      check(versionsDrawer.textContent.indexOf("sha256:") !== -1, "版本抽屉应展示版本 checksum");
+      UI.closeDialog();
+
+      var action = fixture.querySelector('[data-row-action="deactivate"]');
+      action.click();
+      check(confirmCount === 1, "搜索重绘后，一个行操作只能触发一次");
+      document.querySelector('[data-action="confirm"]').click();
+      check(document.activeElement.matches('.admin-state-action[data-id="dws"]'), "状态重绘后焦点应回到对应停用按钮");
+      check(S.getSkill("dws").status === "inactive", "浏览器动作应只执行一次停用转换");
+      check(fixture.querySelector('[data-status-filter="all"]').classList.contains("active"),
+        "列表重绘后应保留当前快捷筛选的高亮状态");
+      fixture.querySelector('[data-status-filter="inactive"]').click();
+      fixture.querySelector('[data-row-action="activate"]').click();
+      document.querySelector('[data-action="confirm"]').click();
+      check(fixture.querySelector('[data-status-filter="inactive"]').classList.contains("active"),
+        "启停操作重绘后应继续保留已停用快捷筛选");
+      check(S.getSkill("dws").status === "active", "已停用筛选内应支持重新启用");
+      fixture.querySelector('[data-status-filter="all"]').click();
+
+      UI.closeDialog();
+      fixture.querySelector("#admin-upload").click();
+      var uploadDrawer = document.querySelector(".drawer-overlay");
+      var wizardFile = uploadDrawer.querySelector("#wizard-file");
+      Object.defineProperty(wizardFile, "files", {
+        configurable: true,
+        value: [{ name: "organization-scope.zip" }]
+      });
+          wizardFile.dispatchEvent(new Event("change", { bubbles: true }));
+          uploadDrawer.querySelector('[data-wizard-action="next"]').click();
+          uploadDrawer.querySelector("#wizard-purpose").value = "验证稳定组织 ID。";
+      uploadDrawer.querySelector('[data-wizard-action="next"]').click();
+      check(uploadDrawer.querySelector("#scope-all").checked, "新导入默认应选择全员范围");
+      check(uploadDrawer.querySelector("[data-custom-scope]").hidden, "全员模式下应隐藏指定范围选项");
+      check(uploadDrawer.querySelector('[data-wizard-action="submit"]').textContent.indexOf("全员开放") !== -1,
+        "最终确认应明确提示对全员开放");
+      check(Boolean(uploadDrawer.querySelector('[data-chip-dept="dept-product"]')), "部门 chip 应使用稳定 deptId");
+      check(Boolean(uploadDrawer.querySelector('[data-chip-person="person-rita"]')), "人员 chip 应使用稳定 personId");
+      uploadDrawer.querySelector("#scope-custom").click();
+      check(!uploadDrawer.querySelector("[data-custom-scope]").hidden, "指定范围模式应展示部门和人员选项");
+      var selectedDepartment = uploadDrawer.querySelector('[data-chip-dept="dept-ai-product"]');
+      selectedDepartment.click();
+      var personSearch = uploadDrawer.querySelector("#scope-person-search");
+      personSearch.value = "Jimmy";
+      personSearch.dispatchEvent(new Event("input", { bubbles: true }));
+      var jimmyOption = uploadDrawer.querySelector('[data-chip-person="person-jimmy"]');
+      var ritaOption = uploadDrawer.querySelector('[data-chip-person="person-rita"]');
+      check(!jimmyOption.hidden && ritaOption.hidden, "指定人员应支持按姓名搜索");
+      check(jimmyOption.textContent.indexOf("AI 技术部") !== -1, "人员选项应展示所属部门");
+      jimmyOption.click();
+      check(selectedDepartment.classList.contains("selected") && jimmyOption.classList.contains("selected"),
+        "指定部门和指定人员应允许同时选择");
+      check(uploadDrawer.querySelector('[data-wizard-action="submit"]').textContent.indexOf("指定范围") !== -1,
+        "组合范围有效后应允许按指定范围导入");
+      UI.closeDialog();
+
+      S.resetState();
+      fixture.innerHTML = '<div id="usage-list"></div>';
+      var refreshCount = 0;
+      function renderLatestUsageList() {
+        refreshCount += 1;
+        fixture.querySelector("#usage-list").textContent = S.visibleSkills().map(function (skill) {
+          return skill.id;
+        }).join(",");
+      }
+      renderLatestUsageList();
+      UI.useSkill("dws", renderLatestUsageList);
+      var useOverlay = document.querySelector(".dialog-overlay");
+      useOverlay.querySelector("#use-input").value = "跨异步窗口验证权限";
+      useOverlay.querySelector("[data-action=submit]").click();
+      S.transitionDefault("dws", "deactivate");
+      await wait(80);
+      check(!document.querySelector(".dialog-overlay"), "异步创建期间失权应关闭使用流程");
+      check(refreshCount === 2, "异步创建期间失权应触发一次最新列表刷新");
+      check(fixture.querySelector("#usage-list").textContent.indexOf("dws") === -1, "失权刷新后的列表不应保留旧 Skill");
+      var revokedToast = document.querySelector(".toast");
+      check(Boolean(revokedToast && revokedToast.textContent.indexOf("已不可用") !== -1), "失权应以 Toast 提示原因");
+
+      S.resetState();
+      var originalCreateFlow = S.createFlow;
+      S.createFlow = function () { return null; };
+      UI.useSkill("dws");
+      var failedOverlay = document.querySelector(".dialog-overlay");
+      var failedInput = failedOverlay.querySelector("#use-input");
+      failedInput.value = "创建失败后仍需保留";
+      failedOverlay.querySelector("[data-action=submit]").click();
+      await wait(80);
+      check(failedOverlay.isConnected, "普通创建失败时使用流程应保持打开");
+      check(failedInput.value === "创建失败后仍需保留", "普通创建失败时应保留用户输入");
+      check(failedOverlay.dataset.state === "create-failed", "普通创建失败应进入可重试状态");
+      UI.closeDialog();
+      S.createFlow = originalCreateFlow;
+
+      UI.confirm = originalConfirm;
+      EventTarget.prototype.addEventListener = originalAddEventListener;
+
+      UI.mountShell({
+        root: fixture,
+        active: "skills",
+        showContext: false,
+        contentHtml: '<div id="navigation-admin"></div>'
+      });
+      check(!fixture.querySelector(".context-sidebar"), "Skill 中心不应渲染 300px 上下文侧栏");
+      var skillFrame = fixture.querySelector(".app-frame");
+      check(skillFrame.classList.contains("no-context"), "Skill 中心壳层应声明 no-context 布局");
+      check(getComputedStyle(skillFrame).gridTemplateColumns.split(" ").length === 2,
+        "Skill 中心只应保留 48px 全局窄栏和中央主内容列");
+      check(document.documentElement.scrollWidth <= window.innerWidth,
+        "Skill 中心无上下文栏布局不应产生横向溢出（当前视口）");
+      var navigationAdmin = fixture.querySelector("#navigation-admin");
+      Admin.mount(navigationAdmin);
+      check(navigationAdmin.textContent.indexOf("默认 Skill 管理") !== -1, "管理入口应直接打开默认 Skill 管理");
+      check(!navigationAdmin.querySelector(".admin-subnav"),
+        "只有一个管理视图时不应再提供子导航");
+      check(navigationAdmin.textContent.indexOf("回收站") === -1 &&
+        !navigationAdmin.querySelector('[data-row-action="delete"]'),
+        "轻量管理不应提供默认 Skill 删除或回收站");
+
+      UI.mountShell({
+        root: fixture,
+        active: "chat",
+        showWorkspace: true,
+        contextItems: [{ label: "当前对话", href: "session.html", active: true }],
+        contentHtml: "<div>Hermes</div>"
+      });
+      check(Boolean(fixture.querySelector(".context-sidebar")), "Hermes Session 默认应保留 300px 上下文栏");
+      check(Boolean(fixture.querySelector(".workspace-panel")), "Hermes Session 应继续保留 Workspace");
+    } catch (error) {
+      failures.push(error && error.stack ? error.stack : String(error));
+    }
+
+    finish();
+  })();
+  </script>
+</body>
+</html>

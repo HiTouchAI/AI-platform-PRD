@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hermes Session - HiTouch AI</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="assets/base.css">
+</head>
+<body class="session-page" data-shell>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="assets/data.js"></script>
+  <script src="assets/common.js"></script>
+  <script>
+    (function () {
+      var workspaceHtml =
+        '<h2>Workspace</h2>' +
+        '<div class="workspace-file">当前对话</div>' +
+        '<div class="workspace-file">已加载 Skill</div>' +
+        '<div class="workspace-file">参考资料</div>' +
+        '<div class="workspace-hint">新 Session 会按当前权限加载可用的个人 Skill 和默认 Skill。</div>';
+
+      UI.mountShell({
+        active: "chat",
+        showContext: true,
+        contextTitle: "聊天",
+        contextItems: [
+          { label: "新的对话", active: true },
+          { label: "客户尽调准备" },
+          { label: "月度经营分析" }
+        ],
+        showWorkspace: true,
+        workspaceHtml: workspaceHtml,
+        contentHtml:
+          '<section id="chat-view" class="chat-view" aria-live="polite" style="min-height:100%; display:flex; flex-direction:column; background:var(--surface)">' +
+            '<header class="chat-header" id="chat-header">新的对话</header>' +
+            '<div class="chat-body" id="chat-body"></div>' +
+            '<div class="chat-composer" aria-label="消息输入区域">' +
+              '<div class="muted">描述需要完成的工作</div>' +
+              '<div class="composer-tools"><span>Hermes</span><span class="hint">输入功能即将开放</span></div>' +
+            '</div>' +
+          '</section>'
+      });
+
+      var flow = S.getFlow();
+      var flowParam = S.getParam("flow");
+      var chatHeader = document.getElementById("chat-header");
+      var chatBody = document.getElementById("chat-body");
+
+      if (flowParam && flow && flow.id === flowParam) {
+        chatHeader.textContent = "新的对话";
+        chatBody.innerHTML =
+          '<div class="msg-user">' + S.escapeHtml(flow.request) + '</div>' +
+          '<div class="msg-ai"><p>我会开始处理你的需求。</p></div>';
+      } else if (flowParam) {
+        chatHeader.textContent = "Session 不可用";
+        chatBody.innerHTML =
+          '<div class="card empty-state"><h2>找不到本次使用记录</h2>' +
+          '<p>请返回 Skill 中心重新选择。</p><a class="btn btn-outline" href="skill-center.html">返回 Skill 中心</a></div>';
+      } else {
+        chatBody.innerHTML =
+          '<div class="msg-ai"><p>你好，我是 HiTouch。你可以直接描述需求，也可以从 Skill 中心选择合适的 Skill 后开启新对话。</p></div>';
+      }
+    })();
+  </script>
+</body>
+</html>

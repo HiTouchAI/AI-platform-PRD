@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HiTouch Skill 中心一期原型</title>
+  <meta http-equiv="refresh" content="0; url=prototype/index.html">
+  <script>
+    const target = `prototype/index.html${location.search}${location.hash}`;
+    location.replace(target);
+  </script>
+</head>
+<body>
+  <p><a id="entry" href="prototype/index.html">进入模块化原型</a></p>
+  <script>document.getElementById("entry").href += location.search + location.hash;</script>
+</body>
+</html>

@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skill 中心 - HiTouch AI</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="assets/base.css">
+</head>
+<body data-shell>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="assets/data.js"></script>
+  <script src="assets/common.js"></script>
+  <script src="assets/skill-admin.js"></script>
+  <script>
+  (function () {
+    var view = S.getParam("view");
+    var id = S.getParam("id");
+    var mode = S.getParam("mode");
+    var filter = S.getParam("filter") || "all";
+    var q = S.getParam("q") || "";
+    var purposeStates = {};
+
+    UI.mountShell({
+      active: "skills",
+      showContext: false,
+      showWorkspace: false,
+      contentHtml: '<div id="skill-content"></div>'
+    });
+
+    var content = document.getElementById("skill-content");
+
+    if (mode === "manage") {
+      Admin.mount(content);
+    } else if (view === "detail" && id) {
+      renderDetail();
+    } else {
+      renderList();
+    }
+
+    function listUrl(overrides) {
+      overrides = overrides || {};
+      return S.buildUrl("skill-center.html", {
+        filter: Object.prototype.hasOwnProperty.call(overrides, "filter") ? overrides.filter : (filter === "all" ? "" : filter),
+        q: Object.prototype.hasOwnProperty.call(overrides, "q") ? overrides.q : q,
+        view: overrides.view || "",
+        id: overrides.id || ""
+      });
+    }
+
+    function manageUrl() {
+      return S.buildUrl("skill-center.html", { mode: "manage" });
+    }
+
+    function renderList() {
+      document.title = "Skill 中心 - HiTouch AI";
+      content.innerHTML =
+        '<section class="page skill-center-page" aria-labelledby="usage-title">' +
+          pageTabs() +
+          '<header class="usage-header">' +
+            '<div><h1 id="usage-title">Skill 中心</h1><p class="muted">选择已分配的默认 Skill 或你在 Hermes 中创建的个人 Skill。</p></div>' +
+          '</header>' +
+          '<div class="search-box usage-search">' +
+            '<label class="sr-only" for="list-search">搜索 Skill</label>' +
+            '<i class="search-icon" data-lucide="search" aria-hidden="true"></i>' +
+            '<input id="list-search" type="search" value="' + S.escapeHtml(q) + '" placeholder="搜索展示名称、能帮你做什么或 Skill 描述">' +
+          '</div>' +
+          '<div class="usage-filter-row">' +
+            '<div class="tabs" aria-label="Skill 来源筛选">' +
+              makeFilterTab("全部", "all") +
+              makeFilterTab("默认", "default") +
+              makeFilterTab("我创建的", "personal") +
+            '</div>' +
+            '<span class="hint" id="result-hint" aria-live="polite"></span>' +
+          '</div>' +
+          '<div class="skill-card-grid" id="skill-grid"></div>' +
+        '</section>';
+
+      UI.refreshIcons(content);
+      var input = document.getElementById("list-search");
+      input.addEventListener("input", function () {
+        q = input.value.trim();
+        history.replaceState(null, "", listUrl());
+        drawList();
+      });
+      document.getElementById("skill-grid").addEventListener("click", onListAction);
+      drawList();
+
+      S.visibleSkills().filter(function (skill) {
+        return skill.pendingPurpose;
+      }).forEach(function (skill) {
+        requestPurpose(skill.id, function () {
+          if (document.getElementById("skill-grid")) drawList();
+        });
+      });
+    }
+
+    function pageTabs() {
+      return '<nav class="section-tabs" aria-label="Skill 中心页面">' +
+        '<span class="section-tab active" aria-current="page">使用中心</span>' +
+        '<a class="section-tab" href="' + manageUrl() + '">管理</a>' +
+      '</nav>';
+    }
+
+    function makeFilterTab(label, value) {
+      var active = filter === value;
+      return '<a class="tab' + (active ? ' active' : '') + '" href="' + listUrl({ filter: value === "all" ? "" : value }) + '"' +
+        (active ? ' aria-current="page"' : '') + '>' + label + '</a>';
+    }
+
+    function matchingSkills() {
+      var visible = S.visibleSkills();
+      var sourceSkills = visible.filter(function (skill) {
+        return filter === "all" || skill.origin === filter;
+      });
+      var needle = q.toLowerCase();
+      var skills = sourceSkills.filter(function (skill) {
+        if (!needle) return true;
+        return [skill.displayName, skill.purpose, skill["description"]].some(function (value) {
+          return (value || "").toLowerCase().indexOf(needle) !== -1;
+        });
+      }).sort(function (a, b) {
+        return b.updatedAt.localeCompare(a.updatedAt);
+      });
+      return { visible: visible, sourceSkills: sourceSkills, skills: skills };
+    }
+
+    function drawList() {
+      var result = matchingSkills();
+      var grid = document.getElementById("skill-grid");
+      document.getElementById("result-hint").textContent = "共 " + result.skills.length + " 个 Skill";
+
+      if (result.skills.length) {
+        grid.innerHTML = result.skills.map(renderSkillCard).join("");
+        UI.refreshIcons(grid);
+        return;
+      }
+
+      if (!result.visible.length) {
+        grid.innerHTML = emptyState("当前没有可用的 Skill", "个人 Skill 可由 Hermes 在对话中创建，默认 Skill 由管理员分配。");
+      } else if (q) {
+        grid.innerHTML = emptyState("没有匹配的搜索结果", "可尝试其他关键词，或清空搜索后查看全部可用 Skill。", "clear-search", "清空搜索");
+      } else if (filter !== "all" && !result.sourceSkills.length) {
+        grid.innerHTML = emptyState("该来源暂无可用 Skill", "查看全部可恢复显示当前所有可用的 Skill。", "show-all", "查看全部");
+      } else {
+        grid.innerHTML = emptyState("没有找到 Skill", "请刷新后重试。");
+      }
+      UI.refreshIcons(grid);
+    }
+
+    function emptyState(title, message, action, actionLabel) {
+      return '<section class="empty-state skill-empty-state">' +
+        '<i data-lucide="inbox" aria-hidden="true"></i>' +
+        '<h2>' + title + '</h2><p>' + message + '</p>' +
+        (action ? '<button class="btn btn-outline" type="button" data-action="' + action + '">' + actionLabel + '</button>' : '') +
+      '</section>';
+    }
+
+    function renderSkillCard(skill) {
+      var source = skill.origin === "default" ? "默认" : "我创建的";
+      var version = skill.origin === "default" && skill.version ? ' · v' + S.escapeHtml(skill.version) : "";
+      return '<article class="skill-card">' +
+        '<button class="skill-card-main" type="button" data-action="detail" data-id="' + S.escapeHtml(skill.id) + '">' +
+          '<span class="skill-symbol"><i data-lucide="' + skillIcon(skill) + '" aria-hidden="true"></i></span>' +
+          '<span class="skill-title-row"><strong>' + S.escapeHtml(skill.displayName) + '</strong>' +
+            '<span class="source-badge source-' + skill.origin + '">' + source + '</span></span>' +
+          '<span class="skill-purpose">' + renderPurpose(skill) + '</span>' +
+        '</button>' +
+        '<footer class="skill-card-footer"><span title="' + S.escapeHtml(skill.updatedAt + version) + '">' +
+          S.escapeHtml(skill.updatedAt) + version +
+          '</span><button class="btn btn-primary btn-sm" type="button" data-action="use" data-id="' + S.escapeHtml(skill.id) + '">使用</button></footer>' +
+      '</article>';
+    }
+
+    function renderPurpose(skill) {
+      if (skill.purpose) return S.escapeHtml(skill.purpose);
+      if (skill.pendingPurpose && purposeStates[skill.id] === "failed") {
+        return '<span class="purpose-error">用途生成失败，可在详情页重试</span>';
+      }
+      if (skill.pendingPurpose) return '<span class="purpose-loading">正在生成</span>';
+      return '暂未填写';
+    }
+
+    function requestPurpose(skillId, onComplete) {
+      if (purposeStates[skillId] === "generating") return;
+      var skill = S.getSkill(skillId);
+      var pendingPurpose = skill && skill.pendingPurpose;
+      if (!pendingPurpose) return;
+      purposeStates[skillId] = "generating";
+      setTimeout(function () {
+        try {
+          if (!S.completePurpose(skillId, pendingPurpose)) throw new Error("purpose generation failed");
+          delete purposeStates[skillId];
+        } catch (_) {
+          purposeStates[skillId] = "failed";
+        }
+        onComplete();
+      }, 1500);
+    }
+
+    function skillIcon(skill) {
+      var icons = {
+        dws: "calendar-check",
+        bookkeeping: "calculator",
+        "hk-tax": "file-check-2",
+        "personal-meeting": "notebook-pen",
+        "personal-research": "search"
+      };
+      return icons[skill.id] || "sparkles";
+    }
+
+    function onListAction(event) {
+      var trigger = event.target.closest("[data-action]");
+      if (!trigger) return;
+      var action = trigger.dataset.action;
+      if (action === "detail") {
+        location.href = listUrl({ view: "detail", id: trigger.dataset.id });
+      } else if (action === "use") {
+        event.stopPropagation();
+        UI.useSkill(trigger.dataset.id, refreshAfterAccessRevoked);
+      } else if (action === "clear-search") {
+        q = "";
+        document.getElementById("list-search").value = "";
+        history.replaceState(null, "", listUrl());
+        drawList();
+        document.getElementById("list-search").focus();
+      } else if (action === "show-all") {
+        location.href = listUrl({ filter: "", q: "" });
+      }
+    }
+
+    function renderDetail() {
+      var skill = S.getSkill(id);
+      if (!skill || !S.isVisible(id)) {
+        content.innerHTML = '<section class="page skill-center-page"><section class="empty-state skill-empty-state">' +
+          '<i data-lucide="circle-alert" aria-hidden="true"></i><h2>Skill 不存在或已不可用</h2>' +
+          '<p>它可能已被删除、停用或取消分配。</p><a class="btn btn-outline" href="' + listUrl() + '">返回使用中心</a></section></section>';
+        UI.refreshIcons(content);
+        return;
+      }
+
+      document.title = skill.displayName + " - Skill 中心";
+      var source = skill.origin === "default" ? "默认" : "我创建的";
+      var version = skill.origin === "default" && skill.version ? '<dt>版本</dt><dd>v' + S.escapeHtml(skill.version) + '</dd>' : "";
+      var retryPurpose = skill.pendingPurpose && purposeStates[skill.id] === "failed"
+        ? '<button class="btn btn-outline" type="button" data-action="retry-purpose" data-id="' + S.escapeHtml(skill.id) + '">重试生成用途</button>'
+        : "";
+      content.innerHTML =
+        '<section class="page skill-center-page" aria-labelledby="detail-title">' +
+          pageTabs() +
+          '<a class="back-link" href="' + listUrl() + '"><i data-lucide="arrow-left" aria-hidden="true"></i> 返回使用中心</a>' +
+          '<article class="skill-detail">' +
+            '<div class="skill-detail-heading"><span class="skill-symbol"><i data-lucide="' + skillIcon(skill) + '" aria-hidden="true"></i></span>' +
+              '<div><div class="skill-title-row"><h1 id="detail-title">' + S.escapeHtml(skill.displayName) + '</h1>' +
+                '<span class="source-badge source-' + skill.origin + '">' + source + '</span></div>' +
+              '<p class="skill-detail-purpose">' + renderPurpose(skill) + '</p></div></div>' +
+                '<dl class="skill-detail-meta"><dt>最近更新</dt><dd>' +
+                  S.escapeHtml(skill.updatedAt) + '</dd>' + version + '</dl>' +
+                '<div class="detail-actions"><button class="btn btn-primary" type="button" data-action="use" data-id="' + S.escapeHtml(skill.id) + '">使用</button>' +
+                  retryPurpose +
+                  (skill.origin === "personal" ? '<button class="btn btn-outline" type="button" data-action="edit" data-id="' + S.escapeHtml(skill.id) + '">编辑展示信息</button>' +
+                '<button class="btn btn-danger-outline" type="button" data-action="delete" data-id="' + S.escapeHtml(skill.id) + '">删除</button>' : '') +
+            '</div>' +
+          '</article>' +
+        '</section>';
+      content.onclick = onDetailAction;
+      UI.refreshIcons(content);
+
+      if (skill.pendingPurpose && purposeStates[id] !== "failed") {
+        requestPurpose(id, renderDetail);
+      }
+    }
+
+    function onDetailAction(event) {
+      var trigger = event.target.closest("[data-action]");
+      if (!trigger) return;
+      if (trigger.dataset.action === "use") {
+        UI.useSkill(trigger.dataset.id, refreshAfterAccessRevoked);
+      } else if (trigger.dataset.action === "retry-purpose") {
+        requestPurpose(trigger.dataset.id, renderDetail);
+      } else if (trigger.dataset.action === "edit") {
+        UI.editPersonal(trigger.dataset.id, renderDetail);
+      } else if (trigger.dataset.action === "delete") {
+        UI.deletePersonal(trigger.dataset.id, function (success) {
+          if (success) {
+            location.href = listUrl();
+          } else {
+            renderDetail();
+          }
+        });
+      }
+    }
+
+    function refreshAfterAccessRevoked() {
+      view = "";
+      id = "";
+      history.replaceState(null, "", listUrl({ view: "", id: "" }));
+      renderList();
+    }
+  })();
+  </script>
+</body>
+</html>

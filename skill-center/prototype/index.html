@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>工作台 - HiTouch AI</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="assets/base.css">
+</head>
+<body>
+  <div data-appbar></div>
+
+  <main class="page" aria-labelledby="workbench-title">
+    <header class="page-header" style="justify-content:space-between; align-items:flex-end; margin-bottom:24px">
+      <div>
+        <p class="hint" style="margin:0 0 5px">HiTouch 工作台</p>
+        <h1 id="workbench-title">下午好，Rita</h1>
+        <p class="muted" style="margin:5px 0 0">从常用入口继续处理今天的工作。</p>
+      </div>
+      <div class="card" style="min-width:190px; padding:10px 12px; box-shadow:none">
+        <div style="font-size:12px; color:var(--subtle)">当前账号</div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:3px; font-weight:700">
+          <span class="user-avatar" aria-hidden="true">R</span>
+          <span>Rita · 产品部</span>
+        </div>
+      </div>
+    </header>
+
+    <section aria-labelledby="assistant-title">
+      <h2 class="section-title" id="assistant-title">我的 AI 助理</h2>
+      <a class="card card-body card-hover" href="session.html" style="display:flex; align-items:center; gap:14px; color:inherit; text-decoration:none">
+        <span class="skill-icon" data-workbench-icon="message-square"><i data-lucide="message-square" aria-hidden="true"></i></span>
+        <span style="flex:1">
+          <strong style="display:block; font-size:16px">Hermes</strong>
+          <span class="muted">开始新的对话，或继续处理正在进行的任务。</span>
+        </span>
+        <span class="btn btn-outline">进入对话</span>
+      </a>
+    </section>
+
+    <section aria-labelledby="common-title">
+      <h2 class="section-title" id="common-title">常用功能</h2>
+      <div class="grid">
+        <a class="card card-body card-hover" href="skill-center.html" style="color:inherit; text-decoration:none">
+          <span class="skill-icon" data-workbench-icon="sparkles"><i data-lucide="sparkles" aria-hidden="true"></i></span>
+          <h3 style="margin:13px 0 5px">Skill 中心</h3>
+          <p class="muted" style="margin-bottom:11px">浏览已分配的 Skill，并从合适的能力开始新任务。</p>
+          <strong id="skill-count" style="color:var(--brand); font-size:13px">当前可用</strong>
+        </a>
+
+        <div class="card card-body" role="group" aria-labelledby="app-center-title" aria-describedby="app-center-description" aria-disabled="true">
+          <span class="skill-icon" data-workbench-icon="grid-2x2"><i data-lucide="grid-2x2" aria-hidden="true"></i></span>
+          <h3 id="app-center-title" style="margin:13px 0 5px">应用中心</h3>
+          <p id="app-center-description" class="muted" style="margin-bottom:11px">内部 AI 应用入口将于后续版本开放。</p>
+          <strong style="color:var(--subtle); font-size:13px">当前仅展示</strong>
+        </div>
+
+        <div class="card card-body">
+          <span class="skill-icon" data-workbench-icon="circle-check"><i data-lucide="circle-check" aria-hidden="true"></i></span>
+          <h3 style="margin:13px 0 5px">确认中心</h3>
+          <p class="muted" style="margin-bottom:11px">现有中台功能。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="assets/data.js"></script>
+  <script src="assets/common.js"></script>
+  <script>
+    (function () {
+      if (S.getParam("reset") === "1") S.resetState();
+      UI.mountAppBar();
+
+      Array.prototype.forEach.call(document.querySelectorAll("[data-workbench-icon]"), function (target) {
+        target.innerHTML = UI.icon(target.dataset.workbenchIcon);
+      });
+      document.getElementById("skill-count").textContent = "当前可用 " + S.visibleSkills().length + " 个 Skill";
+      UI.refreshIcons();
+    })();
+  </script>
+</body>
+</html>
